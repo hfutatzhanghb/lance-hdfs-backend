@@ -17,9 +17,24 @@ with a pluggable Rust storage backend, powered by Apache OpenDAL.
   cache, and atomic write directory through storage options and supported
   environment variables.
 
-Development follows the official Lance `main` branch.
+## Installation
 
-## Requirements
+Add the backend and the Lance dependencies used by the quickstart to your
+`Cargo.toml`:
+
+```toml
+[dependencies]
+lance-hdfs-backend = { git = "https://github.com/hfutatzhanghb/lance-hdfs-backend.git", branch = "main" }
+lance = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+lance-io = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+Development follows the official Lance `main` branch. Use the same Lance Git
+source in your application so the backend and application share the same types.
+
+The default features include the HDFS provider and the rename commit handler.
+Before connecting to a cluster, make sure you have:
 
 - The Rust toolchain specified in [rust-toolchain.toml](rust-toolchain.toml)
 - Java 11 or newer
@@ -35,9 +50,10 @@ CLASSPATH
 LD_LIBRARY_PATH
 ```
 
-## Usage
+## Quickstart
 
-Register the provider, create a session, and open a dataset:
+Register the provider, create a session, and read an existing HDFS dataset.
+Replace the URI with your NameNode and dataset path:
 
 ```rust,ignore
 use std::sync::Arc;
@@ -49,42 +65,32 @@ use lance::session::Session;
 use lance_hdfs_backend::{register, rename_commit_handler};
 use lance_io::object_store::ObjectStoreRegistry;
 
-let registry = Arc::new(ObjectStoreRegistry::default());
-register(&registry);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = Arc::new(ObjectStoreRegistry::default());
+    register(&registry);
 
-let session = Arc::new(Session::new(
-    DEFAULT_INDEX_CACHE_SIZE,
-    DEFAULT_METADATA_CACHE_SIZE,
-    registry,
-));
+    let session = Arc::new(Session::new(
+        DEFAULT_INDEX_CACHE_SIZE,
+        DEFAULT_METADATA_CACHE_SIZE,
+        registry,
+    ));
 
-let dataset = DatasetBuilder::from_uri("hdfs://namenode:9000/user/data/dataset")
-    .with_session(session.clone())
-    .with_commit_handler(rename_commit_handler())
-    .load()
-    .await?;
+    let dataset = DatasetBuilder::from_uri("hdfs://namenode:9000/user/data/dataset")
+        .with_session(session)
+        .with_commit_handler(rename_commit_handler())
+        .load()
+        .await?;
+
+    println!("rows={}", dataset.count_rows(None).await?);
+    Ok(())
+}
 ```
 
-For writes, set both `session` and `commit_handler`:
-
-```rust,ignore
-use lance::dataset::{WriteMode, WriteParams};
-use lance_hdfs_backend::rename_commit_handler;
-
-let params = WriteParams {
-    mode: WriteMode::Overwrite,
-    session: Some(session),
-    commit_handler: Some(rename_commit_handler()),
-    ..Default::default()
-};
-```
-
-Pass `rename_commit_handler()` explicitly when writing datasets to enable
-atomic HDFS commits. Registering the storage provider alone does not configure
-the commit handler.
-
-See [the dataset example](examples/lance_dataset.rs) for a complete write and
-read workflow.
+To create or append to a dataset, pass the same session and
+`rename_commit_handler()` through `WriteParams`, and select `WriteMode::Create`
+or `WriteMode::Append`. See [the dataset example](examples/lance_dataset.rs)
+for a complete write and read workflow, including Arrow batch construction.
 
 ## Configuration
 
@@ -99,6 +105,20 @@ For the NameNode, storage options take precedence over the environment, then
 the address in the `hdfs://` URI. An explicit HDFS user takes precedence over
 the user environment variables.
 
+## Notes
+
+- **HDFS URIs:** include a NameNode address, such as
+  `hdfs://namenode:8020/user/data/dataset`, or a nameservice configured in your
+  Hadoop client, such as `hdfs://my-cluster/user/data/dataset`.
+- **Dataset commits:** pass `rename_commit_handler()` explicitly for writes.
+  It uses HDFS atomic renames to avoid overwriting an existing dataset version.
+  Registering the storage provider alone does not configure the commit handler.
+- **Authentication:** use the storage options listed above for user identity
+  and a Kerberos ticket cache. Keep the Hadoop client configuration consistent
+  with the target cluster.
+- **Configuration scope:** the provider forwards the listed HDFS options and
+  sets the storage root to `/` with rename overwrites disabled.
+
 ## Integration Tests
 
 The HDFS integration tests are ignored by default:
@@ -108,6 +128,10 @@ HDFS_NAME_NODE=hdfs://localhost:9000 \
   cargo test --all-features --test hdfs_integration -- --ignored
 ```
 
-## License
+## Licenses
 
-Licensed under the Apache License, Version 2.0.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
+license text.
+
+This project includes code originally developed by the Lance Authors.
+See [NOTICE](NOTICE) for attribution.
