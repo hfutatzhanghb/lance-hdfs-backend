@@ -1,33 +1,31 @@
 # lance-hdfs-backend
 
-HDFS object store backend for [Lance](https://github.com/lance-format/lance),
-built on Apache OpenDAL's `services-hdfs`.
+Read and write [Lance](https://github.com/lance-format/lance) datasets on HDFS
+with a pluggable Rust storage backend, powered by Apache OpenDAL.
 
-## Lance Compatibility
+## Features
 
-This development branch tracks the official Lance `main` branch through Git
-dependencies. `Cargo.lock` records the exact Lance commit used by CI. Applications
-must use the same Lance Git source and commit to share its provider and session
-types; the crates.io Lance 8.0.0 types are not compatible with this branch.
+- **Lance datasets on HDFS** — create, read, and append to datasets using
+  `hdfs://` URIs, with access to committed dataset versions.
+- **Atomic dataset commits** — use HDFS atomic renames to publish new versions
+  without overwriting an existing version during concurrent writes.
+- **Session-based integration** — register the HDFS provider in a Lance storage
+  registry and share it through a session for reads and writes.
+- **Storage operations** — stream file contents, read byte ranges, write data,
+  list objects, and delete files through Lance's storage interface.
+- **Hadoop configuration** — configure the NameNode, HDFS user, Kerberos ticket
+  cache, and atomic write directory through storage options and supported
+  environment variables.
 
-The backend uses `object_store 0.14.1`, OpenDAL 0.59.2, and
-`object_store_opendal 0.60.2`. Normal storage operations delegate directly to the
-OpenDAL adapter. The HDFS wrapper supplies atomic create-only rename semantics
-for dataset commits.
-
-Git-only dependencies cannot be published to crates.io. Before publishing a
-release, switch the Lance dependencies to a compatible crates.io release and
-restore CI's full package check. The current CI checks dependency resolution
-and the package file list instead.
+Development follows the official Lance `main` branch.
 
 ## Requirements
 
-- Rust 1.97 for development and CI, matching the current Lance main toolchain
+- The Rust toolchain specified in [rust-toolchain.toml](rust-toolchain.toml)
 - Java 11 or newer
 - Hadoop client libraries and configuration when connecting to HDFS
 
-OpenDAL's HDFS service uses `hdrs` and `hdfs-sys`. Set the following for builds
-and runtime:
+Configure the Java and Hadoop environment for your cluster:
 
 ```text
 JAVA_HOME
@@ -37,16 +35,15 @@ CLASSPATH
 LD_LIBRARY_PATH
 ```
 
-When no prebuilt `libhdfs` is found, `hdfs-sys` falls back to compiling its
-bundled native client from source.
-
 ## Usage
+
+Register the provider, create a session, and open a dataset:
 
 ```rust,ignore
 use std::sync::Arc;
 
 use lance::dataset::{
-    DEFAULT_INDEX_CACHE_SIZE, DEFAULT_METADATA_CACHE_SIZE, WriteParams, builder::DatasetBuilder,
+    DEFAULT_INDEX_CACHE_SIZE, DEFAULT_METADATA_CACHE_SIZE, builder::DatasetBuilder,
 };
 use lance::session::Session;
 use lance_hdfs_backend::{register, rename_commit_handler};
@@ -82,22 +79,25 @@ let params = WriteParams {
 };
 ```
 
-`register` only registers the object store provider. The targeted Lance main
-does not know the `hdfs` scheme when selecting a commit handler, so writers must pass the
-returned `RenameCommitHandler` explicitly. Failing to do so can fall back to
-`UnsafeCommitHandler` and is unsafe with concurrent writers.
+Pass `rename_commit_handler()` explicitly when writing datasets to enable
+atomic HDFS commits. Registering the storage provider alone does not configure
+the commit handler.
+
+See [the dataset example](examples/lance_dataset.rs) for a complete write and
+read workflow.
 
 ## Configuration
 
-| Lance storage option | Environment variable | OpenDAL HDFS option |
+| Storage option | Environment variable | Purpose |
 | --- | --- | --- |
-| `hdfs_name_node` | `HDFS_NAME_NODE` | `name_node` |
-| `hdfs_user` | `HADOOP_USER_NAME`, then `HDFS_USER` | `user` |
-| `hdfs_kerberos_ticket_cache_path` | none | `kerberos_ticket_cache_path` |
-| `hdfs_atomic_write_dir` | none | `atomic_write_dir` |
+| `hdfs_name_node` | `HDFS_NAME_NODE` | NameNode address or nameservice URI |
+| `hdfs_user` | `HADOOP_USER_NAME`, then `HDFS_USER` | HDFS user identity |
+| `hdfs_kerberos_ticket_cache_path` | none | Kerberos ticket cache path |
+| `hdfs_atomic_write_dir` | none | Temporary directory for atomic writes |
 
-Configuration priority is storage options, environment variables, then the URI
-authority.
+For the NameNode, storage options take precedence over the environment, then
+the address in the `hdfs://` URI. An explicit HDFS user takes precedence over
+the user environment variables.
 
 ## Integration Tests
 
