@@ -32,6 +32,13 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: Swatinem/rust-cache@v2
 
+      - name: Restore Hadoop client cache
+        id: hadoop-client-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/hadoop-3.1.3
+          key: hadoop-client-3.1.3
+
       - name: Start HDFS
         run: |
           docker run -d \
@@ -53,9 +60,30 @@ jobs:
           curl --retry 60 --retry-delay 2 --retry-connrefused http://localhost:9870
 
       - name: Install Hadoop client
+        if: steps.hadoop-client-cache.outputs.cache-hit != 'true'
         run: |
-          curl -fsSL https://archive.apache.org/dist/hadoop/common/hadoop-3.1.3/hadoop-3.1.3.tar.gz \
-            | tar -xz -C "$HOME"
+          for candidate in \
+            /opt/hadoop-3.1.3 \
+            /hadoop-3.1.3 \
+            /opt/hadoop \
+            /usr/local/hadoop
+          do
+            if docker exec namenode test -d "$candidate"; then
+              docker cp "namenode:$candidate" "$HOME/hadoop-3.1.3"
+              break
+            fi
+          done
+
+          if [ ! -d "$HOME/hadoop-3.1.3" ]; then
+            curl -fL \
+              --retry 5 \
+              --retry-delay 10 \
+              --retry-all-errors \
+              --connect-timeout 30 \
+              --max-time 900 \
+              https://archive.apache.org/dist/hadoop/common/hadoop-3.1.3/hadoop-3.1.3.tar.gz \
+              | tar -xz -C "$HOME"
+          fi
 
       - name: Run HDFS integration tests
         env:
