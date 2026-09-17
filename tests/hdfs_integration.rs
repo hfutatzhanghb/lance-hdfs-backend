@@ -44,7 +44,7 @@ mod tests {
             ("hdfs_user".to_string(), "testuser".to_string()),
             (
                 "hdfs_name_node".to_string(),
-                "hdfs://namenode:9000".to_string(),
+                "hdfs://localhost:9000".to_string(),
             ),
         ]);
         let params = ObjectStoreParams {
