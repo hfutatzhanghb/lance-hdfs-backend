@@ -23,7 +23,7 @@ Add the backend to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lance-hdfs-backend = { git = "https://github.com/hfutatzhanghb/lance-hdfs-backend.git", branch = "main" }
+lance-hdfs-backend = "0.1.0"
 ```
 
 The default features include the HDFS provider and the rename commit handler.
@@ -53,13 +53,13 @@ section alongside `lance-hdfs-backend`. They provide the dataset API, storage
 registry, and async runtime used below:
 
 ```toml
-lance = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
-lance-io = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+lance = { version = "11.0.0", default-features = false }
+lance-io = { version = "11.0.0", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
-Development follows the official Lance `main` branch. Use the same Lance Git
-source in your application so the backend and application share the same types.
+This crate targets Lance 11.0.0. Use the same Lance crate versions in your
+application so the backend and application share the same types.
 
 Register the provider, create a session, and read an existing HDFS dataset.
 Replace the URI with your NameNode and dataset path:
