@@ -172,7 +172,10 @@ fn object_meta13(meta: object_store14::ObjectMeta) -> ObjectMeta {
 }
 
 fn get_result13(result: object_store14::GetResult) -> GetResult {
-    let object_store14::GetResultPayload::Stream(stream) = result.payload;
+    let stream = match result.payload {
+        object_store14::GetResultPayload::Stream(stream) => stream,
+        _ => futures::stream::empty().boxed(),
+    };
 
     GetResult {
         payload: GetResultPayload::Stream(stream.map_err(convert_error).boxed()),
