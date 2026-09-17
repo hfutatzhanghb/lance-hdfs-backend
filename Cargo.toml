@@ -1,0 +1,40 @@
+[package]
+name = "lance-hdfs-backend"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91.0"
+authors = ["hfutatzhanghb"]
+description = "HDFS object store backend for Lance, built on Apache OpenDAL"
+license = "Apache-2.0"
+repository = "https://github.com/hfutatzhanghb/lance-hdfs-backend"
+documentation = "https://docs.rs/lance-hdfs-backend"
+readme = "README.md"
+keywords = ["lance", "hdfs", "object-store", "storage"]
+categories = ["database-implementations", "filesystem"]
+
+[dependencies]
+async-trait = "0.1"
+bytes = "1.11.1"
+futures = "0.3"
+object_store = { version = "0.13.2", default-features = false }
+url = "2.5.7"
+lance-core = { version = "=8.0.0", default-features = false }
+lance-io = { version = "=8.0.0", default-features = false }
+opendal = { version = "0.57.0", optional = true }
+object_store_opendal = { version = "0.57.0", optional = true }
+lance-table = { version = "=8.0.0", optional = true, default-features = false }
+
+[dev-dependencies]
+arrow-array = "58.0.0"
+arrow-schema = "58.0.0"
+lance = { version = "=8.0.0", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[features]
+default = ["hdfs", "commit-handler"]
+hdfs = [
+    "dep:opendal",
+    "opendal/services-hdfs",
+    "dep:object_store_opendal",
+]
+commit-handler = ["dep:lance-table"]

@@ -1,0 +1,63 @@
+name: HDFS integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "11"
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Start HDFS
+        run: |
+          docker run -d \
+            --name namenode \
+            --network host \
+            -e CLUSTER_NAME=test \
+            -e WEBHDFS_CONF_dfs_webhdfs_enabled=true \
+            -e CORE_CONF_hadoop_http_staticuser_user=root \
+            -e HDFS_CONF_dfs_permissions_enabled=false \
+            bde2020/hadoop-namenode:2.0.0-hadoop3.1.3-java8
+          docker run -d \
+            --name datanode \
+            --network host \
+            -e CLUSTER_NAME=test \
+            -e WEBHDFS_CONF_dfs_webhdfs_enabled=true \
+            -e CORE_CONF_hadoop_http_staticuser_user=root \
+            -e HDFS_CONF_dfs_permissions_enabled=false \
+            bde2020/hadoop-datanode:2.0.0-hadoop3.1.3-java8
+          curl --retry 60 --retry-delay 2 --retry-connrefused http://localhost:9870
+
+      - name: Install Hadoop client
+        run: |
+          curl -fsSL https://archive.apache.org/dist/hadoop/common/hadoop-3.1.3/hadoop-3.1.3.tar.gz \
+            | tar -xz -C "$HOME"
+
+      - name: Run HDFS integration tests
+        env:
+          HDFS_NAME_NODE: hdfs://localhost:8020
+        run: |
+          export HADOOP_HOME="$HOME/hadoop-3.1.3"
+          export CLASSPATH="$("$HADOOP_HOME"/bin/hadoop classpath --glob)"
+          export LD_LIBRARY_PATH="$JAVA_HOME/lib/server:$HADOOP_HOME/lib/native"
+          cargo test --all-features --test hdfs_integration -- --ignored
