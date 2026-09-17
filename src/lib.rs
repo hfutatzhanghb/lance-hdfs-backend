@@ -29,7 +29,7 @@ use lance_io::object_store::ObjectStoreRegistry;
 /// handler to Lance.
 #[cfg(feature = "hdfs")]
 pub fn register(registry: &ObjectStoreRegistry) {
-    registry.insert(HDFS_SCHEME, Arc::new(HdfsStoreProvider::default()));
+    registry.insert(HDFS_SCHEME, Arc::new(HdfsStoreProvider));
 }
 
 /// Returns the commit handler recommended for HDFS datasets.

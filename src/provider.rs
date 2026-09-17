@@ -15,7 +15,7 @@ use crate::config::{build_config, calculate_object_store_prefix_with_env};
 use crate::hdfs_object_store::HdfsObjectStore;
 
 /// HDFS object store provider backed by OpenDAL.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct HdfsStoreProvider;
 
 impl HdfsStoreProvider {
