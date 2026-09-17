@@ -38,8 +38,7 @@ impl ObjectStoreProvider for HdfsStoreProvider {
             .unwrap_or_else(|| "<missing>".to_string());
         let has_user = config.contains_key("user");
         let operator = Operator::from_iter::<Hdfs>(config)
-            .map_err(|error| Self::operator_error(error, &name_node, has_user))?
-            .finish();
+            .map_err(|error| Self::operator_error(error, &name_node, has_user))?;
 
         let store_prefix =
             self.calculate_object_store_prefix(&base_path, params.storage_options())?;

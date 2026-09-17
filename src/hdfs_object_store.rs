@@ -6,8 +6,8 @@ use std::ops::Range;
 
 use bytes::Bytes;
 use futures::FutureExt;
-use futures::StreamExt;
 use futures::stream::BoxStream;
+use futures::{StreamExt, TryStreamExt};
 use object_store::{
     CopyMode, CopyOptions, Error, GetOptions, GetRange, GetResult, GetResultPayload, ListResult,
     MultipartUpload, ObjectMeta, ObjectStore as OSObjectStore, PutMode, PutMultipartOptions,
@@ -328,8 +328,9 @@ impl OSObjectStore for HdfsObjectStore {
 
     fn list(&self, prefix: Option<&Path>) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
         let inner = self.inner.clone();
+        let prefix = prefix.map(path14);
         inner
-            .list(prefix.map(path14))
+            .list(prefix.as_ref())
             .map(|result| result.map(object_meta13).map_err(convert_error))
             .boxed()
     }
@@ -340,15 +341,17 @@ impl OSObjectStore for HdfsObjectStore {
         offset: &Path,
     ) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
         let inner = self.inner.clone();
+        let prefix = prefix.map(path14);
         inner
-            .list_with_offset(prefix.map(path14), &path14(offset))
+            .list_with_offset(prefix.as_ref(), &path14(offset))
             .map(|result| result.map(object_meta13).map_err(convert_error))
             .boxed()
     }
 
     async fn list_with_delimiter(&self, prefix: Option<&Path>) -> object_store::Result<ListResult> {
+        let prefix = prefix.map(path14);
         self.inner
-            .list_with_delimiter(prefix.map(path14))
+            .list_with_delimiter(prefix.as_ref())
             .await
             .map(list_result13)
             .map_err(convert_error)
