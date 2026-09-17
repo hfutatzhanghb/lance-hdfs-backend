@@ -32,13 +32,6 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: Swatinem/rust-cache@v2
 
-      - name: Restore Hadoop client cache
-        id: hadoop-client-cache
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/hadoop-3.1.3
-          key: hadoop-client-3.1.3
-
       - name: Start HDFS
         run: |
           docker run -d \
@@ -60,7 +53,6 @@ jobs:
           curl --retry 60 --retry-delay 2 --retry-connrefused http://localhost:9870
 
       - name: Install Hadoop client
-        if: steps.hadoop-client-cache.outputs.cache-hit != 'true'
         run: |
           for candidate in \
             /opt/hadoop-3.1.3 \
