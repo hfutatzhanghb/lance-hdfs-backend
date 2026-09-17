@@ -19,19 +19,12 @@ with a pluggable Rust storage backend, powered by Apache OpenDAL.
 
 ## Installation
 
-Add the backend and the Lance dependencies used by the quickstart to your
-`Cargo.toml`:
+Add the backend to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 lance-hdfs-backend = { git = "https://github.com/hfutatzhanghb/lance-hdfs-backend.git", branch = "main" }
-lance = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
-lance-io = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
-
-Development follows the official Lance `main` branch. Use the same Lance Git
-source in your application so the backend and application share the same types.
 
 The default features include the HDFS provider and the rename commit handler.
 Before connecting to a cluster, make sure you have:
@@ -51,6 +44,19 @@ LD_LIBRARY_PATH
 ```
 
 ## Quickstart
+
+For this example, add the following entries to the same `[dependencies]`
+section alongside `lance-hdfs-backend`. They provide the dataset API, storage
+registry, and async runtime used below:
+
+```toml
+lance = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+lance-io = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+Development follows the official Lance `main` branch. Use the same Lance Git
+source in your application so the backend and application share the same types.
 
 Register the provider, create a session, and read an existing HDFS dataset.
 Replace the URI with your NameNode and dataset path:
