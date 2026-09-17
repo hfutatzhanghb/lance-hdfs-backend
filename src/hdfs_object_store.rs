@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The Lance Authors
 
 use std::fmt::{Debug, Display, Formatter};
+use std::future::{Future, IntoFuture};
 use std::ops::Range;
 
 use bytes::Bytes;
@@ -12,9 +13,26 @@ use object_store::{
     RenameOptions, RenameTargetMode, path::Path,
 };
 use object_store_opendal::OpendalStore;
-use object_store_opendal::utils::IntoSendFuture;
 use opendal::Operator;
 use opendal::raw::percent_decode_path;
+use send_wrapper::SendWrapper;
+
+trait OpendalIntoSendFuture {
+    type Output: Future<Output = opendal::Result<()>>;
+
+    fn into_send(self) -> Self::Output;
+}
+
+impl<T> OpendalIntoSendFuture for T
+where
+    T: IntoFuture<Output = opendal::Result<()>>,
+{
+    type Output = SendWrapper<T::IntoFuture>;
+
+    fn into_send(self) -> Self::Output {
+        SendWrapper::new(self.into_future())
+    }
+}
 
 pub(crate) struct HdfsObjectStore {
     inner: OpendalStore,
