@@ -8,7 +8,6 @@ use lance_io::object_store::{
     DEFAULT_CLOUD_IO_PARALLELISM, ObjectStore, ObjectStoreParams, ObjectStoreProvider,
     StorageOptions,
 };
-use object_store::path::Path;
 use opendal::{Operator, services::Hdfs};
 use url::Url;
 

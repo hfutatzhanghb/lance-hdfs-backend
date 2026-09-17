@@ -5,14 +5,14 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
 
 use bytes::Bytes;
-use futures::FutureExt;
 use futures::stream::BoxStream;
 use object_store::{
     CopyOptions, GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta,
     ObjectStore as OSObjectStore, PutMultipartOptions, PutOptions, PutPayload, PutResult,
     RenameOptions, RenameTargetMode, path::Path,
 };
-use object_store_opendal::{IntoSendFuture, OpendalStore};
+use object_store_opendal::OpendalStore;
+use object_store_opendal::utils::IntoSendFuture;
 use opendal::Operator;
 use opendal::raw::percent_decode_path;
 
