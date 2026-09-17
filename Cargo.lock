@@ -2907,7 +2907,7 @@ dependencies = [
 
 [[package]]
 name = "lance-hdfs-backend"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrow-array",
  "arrow-schema",
