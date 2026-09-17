@@ -139,8 +139,8 @@ HDFS_NAME_NODE=hdfs://localhost:9000 \
 
 ## Licenses
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
+Licensed under the Apache License, Version 2.0. See the `LICENSE` file for the
 license text.
 
 This project includes code originally developed by the Lance Authors.
-See [NOTICE](NOTICE) for attribution.
+See the `NOTICE` file for attribution.
