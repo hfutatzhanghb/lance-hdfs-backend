@@ -50,7 +50,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
   test:
     runs-on: ubuntu-24.04
@@ -71,7 +71,7 @@ jobs:
       - name: Test
         env:
           LD_LIBRARY_PATH: ${{ env.JAVA_HOME }}/lib/server
-        run: cargo test --all-features --no-fail-fast
+        run: cargo test --locked --all-features --no-fail-fast
 
   package:
     runs-on: ubuntu-24.04
@@ -79,8 +79,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - name: Package metadata check
-        run: cargo package --no-verify --all-features
+      - name: Check dependency resolution
+        run: cargo metadata --locked --format-version 1 --all-features > /dev/null
+      # Git-only Lance main dependencies cannot be packaged for crates.io.
+      - name: Check package file list
+        run: cargo package --list --locked --all-features
 
   rustdoc:
     runs-on: ubuntu-24.04
@@ -101,4 +104,4 @@ jobs:
       - name: Documentation
         env:
           RUSTDOCFLAGS: "-D warnings"
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --locked --no-deps --all-features

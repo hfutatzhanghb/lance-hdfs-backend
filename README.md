@@ -3,9 +3,26 @@
 HDFS object store backend for [Lance](https://github.com/lance-format/lance),
 built on Apache OpenDAL's `services-hdfs`.
 
+## Lance Compatibility
+
+This development branch tracks the official Lance `main` branch through Git
+dependencies. `Cargo.lock` records the exact Lance commit used by CI. Applications
+must use the same Lance Git source and commit to share its provider and session
+types; the crates.io Lance 8.0.0 types are not compatible with this branch.
+
+The backend uses `object_store 0.14.1`, OpenDAL 0.59.2, and
+`object_store_opendal 0.60.2`. Normal storage operations delegate directly to the
+OpenDAL adapter. The HDFS wrapper supplies atomic create-only rename semantics
+for dataset commits.
+
+Git-only dependencies cannot be published to crates.io. Before publishing a
+release, switch the Lance dependencies to a compatible crates.io release and
+restore CI's full package check. The current CI checks dependency resolution
+and the package file list instead.
+
 ## Requirements
 
-- Rust 1.91 or newer
+- Rust 1.97 for development and CI, matching the current Lance main toolchain
 - Java 11 or newer
 - Hadoop client libraries and configuration when connecting to HDFS
 
@@ -65,8 +82,8 @@ let params = WriteParams {
 };
 ```
 
-`register` only registers the object store provider. Lance 8.0.0 does not know
-the `hdfs` scheme when selecting a commit handler, so writers must pass the
+`register` only registers the object store provider. The targeted Lance main
+does not know the `hdfs` scheme when selecting a commit handler, so writers must pass the
 returned `RenameCommitHandler` explicitly. Failing to do so can fall back to
 `UnsafeCommitHandler` and is unsafe with concurrent writers.
 

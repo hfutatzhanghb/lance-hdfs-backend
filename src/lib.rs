@@ -35,7 +35,7 @@ pub fn register(registry: &ObjectStoreRegistry) {
 /// Returns the commit handler recommended for HDFS datasets.
 ///
 /// HDFS supports atomic renames, so [`RenameCommitHandler`] is used instead of
-/// the unsafe unknown-scheme fallback in Lance 8.0.0.
+/// the unsafe unknown-scheme fallback in Lance.
 ///
 /// [`RenameCommitHandler`]: lance_table::io::commit::RenameCommitHandler
 #[cfg(feature = "commit-handler")]

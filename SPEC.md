@@ -1,6 +1,6 @@
 # lance-hdfs-backend Specification
 
-Status: Draft / 待评审
+Status: Development against upstream Lance main
 Date: 2026-09-17
 Author: Codex
 Target repository: `hfutatzhanghb/lance-hdfs-backend`
@@ -8,7 +8,7 @@ Target crate: `lance-hdfs-backend`
 
 ## 1. Problem
 
-Lance 8.0.0 的 crates.io 发布版本没有内置 HDFS feature。用户希望发布一个第三方 Rust crate，让使用 Lance 或 LanceDB 的应用可以通过：
+当前项目基于官方 Lance main 分支开发，提供独立的 HDFS provider，让使用 Lance 的应用可以通过：
 
 ```text
 hdfs://<name-node-or-nameservice>/<path>
@@ -18,7 +18,7 @@ hdfs://<name-node-or-nameservice>/<path>
 
 该 crate 的目标是把本地
 `/Users/admin/IdeaProjects/lance-bzl`
-仓库中 `v8.0.0-bzl` 分支的 HDFS feature 提取为独立 crate，并发布到 crates.io。
+仓库中 `v8.0.0-bzl` 分支的 HDFS feature 提取为独立 crate。该分支仅作为历史行为参考；当前依赖使用官方 Lance main。待兼容的 Lance 版本发布到 crates.io 后，再准备本项目的 crates.io 发布。
 
 ## 2. Reference Inputs
 
@@ -49,19 +49,24 @@ The reference implementation uses:
 - Lance `ObjectStoreProvider`
 - `lance_core::error::{Error, Result}`
 
-### 2.2 Verified Published Lance APIs
+### 2.2 Verified Lance Main APIs
 
-Verified against crates.io and downloaded sources:
+Verified against upstream commit `2602724cf6256ff8f55571805fdc5b0614d706b8`
+(2026-09-17, workspace version `13.0.0-beta.4`):
 
-- `lance-io` version `8.0.0` exists on crates.io.
-- Its published feature list does **not** contain `hdfs`.
+- PR #9123 upgraded Lance to `object_store 0.14.1`.
+- Current main uses OpenDAL 0.59.2 and `object_store_opendal 0.60.2`.
+- All direct Lance dependencies use the same official Git source and `main`
+  branch. `Cargo.lock` pins the resolved commit; CI uses `--locked`.
+- The development toolchain matches upstream Rust 1.97.0.
+- HDFS is supplied by this external provider.
 - `lance_io::object_store::ObjectStoreProvider` is public.
 - `lance_io::object_store::ObjectStoreRegistry::insert` is public and takes
   `&self`, `scheme: &str`, and `Arc<dyn ObjectStoreProvider>`.
 - `lance_io::object_store::ObjectStore::new` is public. This is the constructor
   that external crates must use to return Lance's `ObjectStore` type from a
   provider implementation.
-- `lance-table` version `8.0.0` exists on crates.io and exposes
+- `lance-table` on the targeted main commit exposes
   `lance_table::io::commit::RenameCommitHandler`.
 
 This makes a third-party provider possible without modifying the Lance source
@@ -78,7 +83,7 @@ The local `v8.0.0-bzl` branch has:
 
 in `commit_handler_from_url`.
 
-The published `lance-table 8.0.0` source does **not** have this `hdfs` arm. Its
+The targeted upstream `lance-table` source does **not** have this `hdfs` arm. Its
 unknown-scheme fallback is `UnsafeCommitHandler`.
 
 Therefore, registering the HDFS object store provider alone does **not** make
@@ -102,20 +107,21 @@ to opt into the safe rename commit handler.
 - Unit tests that do not require a live HDFS cluster.
 - Ignored integration tests that can run against a real HDFS cluster.
 - GitHub Actions CI for formatting, clippy, build, unit tests, package checks,
-  optional HDFS integration, and crates.io publish.
-- crates.io metadata required by `cargo package`/`cargo publish`.
+  HDFS integration, and dependency/package-file checks.
+- Preserve crates.io metadata for a future release using registry dependencies.
+  Git-only Lance dependencies currently prevent crates.io publishing.
 
 ### 3.2 Out Of Scope For The First Version
 
 - Modifying upstream Lance or publishing a patched Lance release.
-- Automatic global process-wide provider registration. Lance 8.0.0's default
+- Automatic global process-wide provider registration. Lance's default
   registry is not exposed as a public mutable global from `lance-io`; callers
   should create a `Session` with a registry that this crate has populated.
 - `opendal` `services-hdfs-native` support. The local reference uses
   `services-hdfs`, so the first implementation should use that path.
 - Python, Java, or Lance-JNI bindings.
-- Multi-version Lance compatibility matrix. The first release targets
-  `lance-io 8.0.0`.
+- Multi-version Lance compatibility matrix. Development targets the official
+  Lance main commit recorded in `Cargo.lock`.
 
 ## 4. Crate API Proposal
 
@@ -196,7 +202,6 @@ Use:
 ```rust
 Operator::from_iter::<Hdfs>(config)
     .map_err(...)?
-    .finish()
 ```
 
 where `Hdfs` is `opendal::services::Hdfs`.
@@ -217,7 +222,10 @@ Failed to create HDFS operator: {error}. name_node={name_node}, has_user={has_us
 Port the local `HdfsObjectStore`:
 
 - Store both `OpendalStore` and the original `Operator`.
-- Delegate normal operations to `OpendalStore`.
+- Delegate normal operations to `OpendalStore` using shared `object_store 0.14.1`
+  types, preserving options, results, attributes, extensions, and errors.
+- Do not add an `object_store_014` alias or cross-version conversion layer.
+  DataFusion may still pull in 0.13 transitively; Lance owns that boundary.
 - For `rename_opts` with `RenameTargetMode::Create`, call OpenDAL
   `rename` directly after percent-decoding both paths.
 - For other rename target modes, delegate to `OpendalStore`.
@@ -248,9 +256,9 @@ Preserve that behavior in the first port.
 
 ## 6. Cargo.toml Proposal
 
-This is a draft manifest based on verified Lance 8.0.0 and OpenDAL 0.57.0
-dependencies. The final implementation must be checked with `cargo metadata`
-and `cargo check`.
+The manifest tracks official Lance main with OpenDAL 0.59.2. Validate dependency
+resolution with `cargo metadata`; compile and test through remote CI. Local
+Cargo compilation and test execution are disabled by the working agreement.
 
 ```toml
 [package]
@@ -271,15 +279,19 @@ categories = ["database-implementations", "filesystem"]
 async-trait = "0.1"
 bytes = "1.11.1"
 futures = "0.3"
-object_store = { version = "0.13.2", default-features = false }
+object_store = { version = "=0.14.1", default-features = false }
 url = "2.5.7"
-lance-core = { version = "=8.0.0", default-features = false }
-lance-io = { version = "=8.0.0", default-features = false }
-opendal = { version = "0.57.0", optional = true }
-object_store_opendal = { version = "0.57.0", optional = true }
-lance-table = { version = "=8.0.0", optional = true, default-features = false }
+lance-core = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+lance-io = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+opendal = { version = "0.59.2", optional = true }
+object_store_opendal = { version = "0.59.2", optional = true }
+lance-table = { git = "https://github.com/lance-format/lance.git", branch = "main", optional = true, default-features = false }
 
 [dev-dependencies]
+arrow-array = "58.0.0"
+arrow-schema = "58.0.0"
+lance = { git = "https://github.com/lance-format/lance.git", branch = "main", default-features = false }
+opendal = { version = "0.59.2", default-features = false, features = ["services-memory"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [features]
@@ -294,8 +306,8 @@ commit-handler = ["dep:lance-table"]
 
 Notes:
 
-- Pin `lance-core`, `lance-io`, and optional `lance-table` to `=8.0.0` for the
-  first release to match the reference branch and avoid trait-version drift.
+- Keep `lance-core`, `lance-io`, optional `lance-table`, and test dependency
+  `lance` on the same Git source/branch and lockfile commit to avoid type drift.
 - `lance-io` should use `default-features = false` because the HDFS provider
   does not need Lance's AWS/Azure/GCP defaults.
 - Keep `opendal` default features enabled; the `services-hdfs` feature is added
@@ -412,20 +424,20 @@ Jobs:
 2. **Clippy**
    - Setup Java before Cargo compilation because `hdrs`/`hdfs-sys` need JVM
      headers and native library resolution.
-   - `cargo clippy --all-targets --all-features -- -D warnings`
+   - `cargo clippy --locked --all-targets --all-features -- -D warnings`
 
 3. **Build and test**
    - Setup Java.
-   - `cargo build --all-features --tests`
-   - `cargo test --all-features --no-fail-fast`
+   - `cargo test --locked --all-features --no-fail-fast` compiles and runs tests.
 
-4. **Package metadata**
-   - `cargo package --no-verify --all-features`
-   - This catches missing license/readme/files and manifest problems before
-     release.
+4. **Dependencies and package contents**
+   - `cargo metadata --locked --format-version 1 --all-features`
+   - `cargo package --list --locked --all-features`
+   - Git-only Lance main dependencies cannot be packaged for crates.io.
+     Restore the full package check when targeting a registry release.
 
 5. **Rustdoc**
-   - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`
+   - `RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --all-features`
 
 Common settings borrowed from the inspected workflows:
 
@@ -446,8 +458,8 @@ Java setup recommendation:
 
 ### 9.3 HDFS Integration: `.github/workflows/hdfs-integration.yml`
 
-This job should not be required for normal pull requests; use
-`workflow_dispatch` and/or a scheduled run. It should:
+This job runs on pushes to `main`, `workflow_dispatch`, and a weekly schedule.
+It is not triggered for pull requests. It should:
 
 1. Set up Rust and Java.
 2. Install a matching Hadoop client distribution.
@@ -460,7 +472,7 @@ This job should not be required for normal pull requests; use
 8. Run the ignored HDFS integration tests:
 
 ```bash
-cargo test --all-features --test hdfs_integration -- --ignored
+cargo test --locked --all-features --test hdfs_integration -- --ignored
 ```
 
 Use the HDFS container/runtime setup from `Xuanwo/hdrs/.github/workflows/ci.yml`
@@ -469,10 +481,13 @@ the image version actually chosen.
 
 ### 9.4 Publish: `.github/workflows/publish.yml`
 
+This workflow applies to future release tags with registry-based Lance
+dependencies. The current Git-only main development branch cannot be published
+to crates.io; switch to a compatible registry release before using it.
+
 Trigger:
 
-- tag pushed as `v*`
-- or GitHub release marked `released`
+- GitHub release marked `released`
 - or `workflow_dispatch` with a tag input
 
 Steps:
@@ -492,6 +507,7 @@ the actual publish.
 
 ## 10. Release and Publish Checklist
 
+- [ ] Replace Git-only Lance dependencies with a compatible crates.io release
 - [ ] Repository exists at `https://github.com/hfutatzhanghb/lance-hdfs-backend`
 - [ ] `Cargo.toml` has `license = "Apache-2.0"`
 - [ ] `Cargo.toml` has a non-empty `description`
