@@ -27,6 +27,11 @@ lance-hdfs-backend = { git = "https://github.com/hfutatzhanghb/lance-hdfs-backen
 ```
 
 The default features include the HDFS provider and the rename commit handler.
+
+## Quickstart
+
+### Prepare the environment
+
 Before connecting to a cluster, make sure you have:
 
 - The Rust toolchain specified in [rust-toolchain.toml](rust-toolchain.toml)
@@ -42,8 +47,6 @@ HADOOP_CONF_DIR
 CLASSPATH
 LD_LIBRARY_PATH
 ```
-
-## Quickstart
 
 For this example, add the following entries to the same `[dependencies]`
 section alongside `lance-hdfs-backend`. They provide the dataset API, storage
