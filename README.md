@@ -19,14 +19,22 @@ with a pluggable Rust storage backend, powered by Apache OpenDAL.
 
 ## Installation
 
-Add the backend to your `Cargo.toml`:
+Add the backend and the Lance crates it integrates with to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 lance-hdfs-backend = "0.1.0"
+lance = { version = "11.0.0", default-features = false }
+lance-io = { version = "11.0.0", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
-The default features include the HDFS provider and the rename commit handler.
+`lance-io` provides the storage registry the provider is registered in, `lance`
+provides the dataset API, and `tokio` runs the async calls. The default features
+of `lance-hdfs-backend` include the HDFS provider and the rename commit handler.
+
+This release targets Lance 11.0.0. Keep `lance` and `lance-io` on that version
+so the backend and your application share the same types.
 
 ## Quickstart
 
@@ -47,19 +55,6 @@ HADOOP_CONF_DIR
 CLASSPATH
 LD_LIBRARY_PATH
 ```
-
-For this example, add the following entries to the same `[dependencies]`
-section alongside `lance-hdfs-backend`. They provide the dataset API, storage
-registry, and async runtime used below:
-
-```toml
-lance = { version = "11.0.0", default-features = false }
-lance-io = { version = "11.0.0", default-features = false }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-```
-
-This crate targets Lance 11.0.0. Use the same Lance crate versions in your
-application so the backend and application share the same types.
 
 Register the provider, create a session, and read an existing HDFS dataset.
 Replace the URI with your NameNode and dataset path:
