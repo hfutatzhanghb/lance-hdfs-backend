@@ -14,7 +14,7 @@ mod tests {
     use lance_io::object_store::{
         ObjectStore, ObjectStoreParams, ObjectStoreRegistry, StorageOptionsAccessor,
     };
-    use object_store::ObjectStore as _;
+    use object_store::ObjectStore as OSObjectStore;
     use object_store::path::Path;
 
     fn registry() -> Arc<ObjectStoreRegistry> {
