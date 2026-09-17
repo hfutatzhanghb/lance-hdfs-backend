@@ -41,6 +41,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Test
+        env:
+          LD_LIBRARY_PATH: ${{ env.JAVA_HOME }}/lib/server
         run: cargo test --all-features --no-fail-fast
 
       - name: Publish dry run

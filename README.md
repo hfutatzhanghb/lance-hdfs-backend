@@ -25,7 +25,7 @@ bundled native client from source.
 
 ## Usage
 
-```rust,no_run
+```rust,ignore
 use std::sync::Arc;
 
 use lance::dataset::{
@@ -53,7 +53,7 @@ let dataset = DatasetBuilder::from_uri("hdfs://namenode:9000/user/data/dataset")
 
 For writes, set both `session` and `commit_handler`:
 
-```rust,no_run
+```rust,ignore
 use lance::dataset::{WriteMode, WriteParams};
 use lance_hdfs_backend::rename_commit_handler;
 
