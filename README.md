@@ -121,7 +121,9 @@ the user environment variables.
   and a Kerberos ticket cache. Keep the Hadoop client configuration consistent
   with the target cluster.
 - **Configuration scope:** the provider forwards the listed HDFS options and
-  sets the storage root to `/` with rename overwrites disabled.
+  sets the storage root to `/`. Create-mode renames (dataset commits) request
+  OpenDAL if-not-exists semantics, so a commit fails instead of replacing an
+  already committed dataset version.
 
 ## Integration Tests
 
