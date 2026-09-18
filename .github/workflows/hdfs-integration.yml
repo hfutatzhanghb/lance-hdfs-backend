@@ -19,6 +19,14 @@ jobs:
   integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    name: integration (java ${{ matrix.java-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Client JVM versions supported by the Hadoop stack this crate
+        # targets. The Hadoop cluster containers run their own JVM and are
+        # unaffected by this matrix.
+        java-version: ["11", "17"]
     steps:
       - uses: actions/checkout@v7
 
@@ -26,7 +34,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "11"
+          java-version: ${{ matrix.java-version }}
       - name: Install protoc
         uses: taiki-e/install-action@v2
         with:

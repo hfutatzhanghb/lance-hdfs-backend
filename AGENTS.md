@@ -13,6 +13,7 @@ HDFS atomic renames to publish dataset versions safely.
 * Test: `cargo test --locked --all-features --no-fail-fast`
 * Docs: `RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --all-features`
 * Package check: `cargo package --list --locked --all-features`
+* MSRV check (Rust 1.91.0): `RUSTUP_TOOLCHAIN=1.91.0 cargo check --locked --all-targets --all-features`
 * HDFS integration tests are ignored by default and need a live cluster:
   `HDFS_NAME_NODE=hdfs://localhost:9000 cargo test --all-features --test hdfs_integration -- --ignored`
 
