@@ -145,16 +145,27 @@ impl OSObjectStore for HdfsObjectStore {
             return self.inner.rename_opts(from, to, options).await;
         }
 
-        // HDFS is configured with rename_overwrite=false. Use its atomic rename
-        // directly for create-only commits instead of a copy/delete fallback.
+        // Create-mode rename is the dataset commit primitive: it must fail
+        // instead of replacing an existing target. Request OpenDAL
+        // if-not-exists semantics explicitly; without it the HDFS service
+        // deletes an existing target and renames over it. The service reports
+        // the conflict as ConditionNotMatch, which object_store requires to be
+        // surfaced as AlreadyExists for RenameTargetMode::Create.
         self.operator
-            .rename(
+            .rename_with(
                 &percent_decode_path(from.as_ref()),
                 &percent_decode_path(to.as_ref()),
             )
+            .if_not_exists(true)
             .into_send()
             .await
-            .map_err(|error| Self::format_opendal_error(error, to))
+            .map_err(|error| match error.kind() {
+                opendal::ErrorKind::ConditionNotMatch => object_store::Error::AlreadyExists {
+                    path: to.to_string(),
+                    source: Box::new(error),
+                },
+                _ => Self::format_opendal_error(error, to),
+            })
     }
 }
 
