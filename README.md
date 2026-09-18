@@ -24,8 +24,8 @@ Add the backend and the Lance crates it integrates with to your `Cargo.toml`:
 ```toml
 [dependencies]
 lance-hdfs-backend = "0.1.1"
-lance = { version = "11.0.0", default-features = false }
-lance-io = { version = "11.0.0", default-features = false }
+lance = { version = "12.0.0", default-features = false }
+lance-io = { version = "12.0.0", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -33,7 +33,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 provides the dataset API, and `tokio` runs the async calls. The default features
 of `lance-hdfs-backend` include the HDFS provider and the rename commit handler.
 
-This release targets Lance 11.0.0. Keep `lance` and `lance-io` on that version
+This release targets Lance 12.0.0. Keep `lance` and `lance-io` on that version
 so the backend and your application share the same types.
 
 ## Quickstart
