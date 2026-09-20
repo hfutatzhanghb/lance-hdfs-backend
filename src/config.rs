@@ -44,7 +44,6 @@ where
     let mut config = HashMap::from([
         ("name_node".to_string(), name_node),
         ("root".to_string(), "/".to_string()),
-        ("rename_overwrite".to_string(), "false".to_string()),
     ]);
 
     let user = storage_options

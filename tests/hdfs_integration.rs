@@ -9,18 +9,33 @@
 mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use lance_hdfs_backend::register;
     use lance_io::object_store::{
         ObjectStore, ObjectStoreParams, ObjectStoreRegistry, StorageOptionsAccessor,
     };
-    use object_store::ObjectStoreExt;
     use object_store::path::Path;
+    use object_store::{ObjectStoreExt, RenameOptions, RenameTargetMode};
 
     fn registry() -> Arc<ObjectStoreRegistry> {
         let registry = Arc::new(ObjectStoreRegistry::default());
         register(&registry);
         registry
+    }
+
+    fn unique_suffix() -> u128 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    }
+
+    fn create_options() -> RenameOptions {
+        RenameOptions {
+            target_mode: RenameTargetMode::Create,
+            ..Default::default()
+        }
     }
 
     #[ignore = "Requires HDFS cluster"]
@@ -106,6 +121,71 @@ mod tests {
 
         assert_eq!(store.scheme(), "hdfs");
         assert_eq!(path, Path::from("user/test"));
+    }
+
+    #[ignore = "Requires HDFS cluster"]
+    #[tokio::test]
+    async fn test_hdfs_rename_create_mode_rejects_existing_target() {
+        let (store, _) = ObjectStore::from_uri_and_params(
+            registry(),
+            "hdfs://localhost:9000/test",
+            &Default::default(),
+        )
+        .await
+        .unwrap();
+
+        let suffix = unique_suffix();
+        let winner = Path::from(format!("rename-winner-{suffix}.manifest"));
+        let loser = Path::from(format!("rename-loser-{suffix}.manifest"));
+        store
+            .inner
+            .put(&winner, bytes::Bytes::from_static(b"v2-a").into())
+            .await
+            .unwrap();
+        store
+            .inner
+            .put(&loser, bytes::Bytes::from_static(b"v2-b").into())
+            .await
+            .unwrap();
+
+        // Simulates the losing side of a concurrent dataset commit: a
+        // create-mode rename onto an already committed version must fail and
+        // must never replace the committed file.
+        let error = store
+            .inner
+            .rename_opts(&loser, &winner, create_options())
+            .await
+            .unwrap_err();
+        assert!(matches!(error, object_store::Error::AlreadyExists { .. }));
+
+        assert_eq!(
+            store
+                .inner
+                .get(&winner)
+                .await
+                .unwrap()
+                .bytes()
+                .await
+                .unwrap(),
+            bytes::Bytes::from_static(b"v2-a")
+        );
+        assert!(store.inner.head(&loser).await.is_ok());
+
+        // Create-mode rename onto a free target still succeeds and removes
+        // the source.
+        let free = Path::from(format!("rename-free-{suffix}.manifest"));
+        store
+            .inner
+            .rename_opts(&loser, &free, create_options())
+            .await
+            .unwrap();
+        assert!(matches!(
+            store.inner.get(&loser).await,
+            Err(object_store::Error::NotFound { .. })
+        ));
+
+        store.inner.delete(&winner).await.unwrap();
+        store.inner.delete(&free).await.unwrap();
     }
 }
 

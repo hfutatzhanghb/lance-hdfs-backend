@@ -87,7 +87,7 @@ mod tests {
                 "hdfs://namenode:9000/user/data/dataset/file.parquet",
                 "user/data/dataset/file.parquet",
             ),
-            ("hdfs://ht-hdfsqa/user/data/file.txt", "user/data/file.txt"),
+            ("hdfs://my-cluster/user/data/file.txt", "user/data/file.txt"),
         ];
 
         for (url, expected_path) in cases {
@@ -104,7 +104,6 @@ mod tests {
 
         assert_eq!(config.get("name_node").unwrap(), "hdfs://namenode:9000");
         assert_eq!(config.get("root").unwrap(), "/");
-        assert_eq!(config.get("rename_overwrite").unwrap(), "false");
     }
 
     #[test]
@@ -142,7 +141,6 @@ mod tests {
             "/tmp/krb5cc"
         );
         assert_eq!(config.get("atomic_write_dir").unwrap(), "/tmp/atomic");
-        assert_eq!(config.get("rename_overwrite").unwrap(), "false");
     }
 
     #[test]
