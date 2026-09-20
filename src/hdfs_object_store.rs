@@ -3,17 +3,18 @@
 
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
+use std::time::SystemTime;
 
 use bytes::Bytes;
-use futures::stream::BoxStream;
+use futures::{FutureExt, StreamExt, TryStreamExt, future, stream::BoxStream};
 use object_store::{
     CopyOptions, GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta,
     ObjectStore as OSObjectStore, PutMultipartOptions, PutOptions, PutPayload, PutResult,
     RenameOptions, RenameTargetMode, path::Path,
 };
 use object_store_opendal::{IntoSendFuture, OpendalStore};
-use opendal::Operator;
 use opendal::raw::percent_decode_path;
+use opendal::{Metadata, Operator};
 
 pub(crate) struct HdfsObjectStore {
     inner: OpendalStore,
@@ -50,6 +51,50 @@ impl HdfsObjectStore {
                 source: Box::new(error),
             },
         }
+    }
+
+    /// Builds the operator-relative path of a listing request.
+    ///
+    /// `Path` drops trailing slashes, but OpenDAL needs one to tell a directory
+    /// prefix apart from a plain key prefix.
+    fn listing_path(prefix: Option<&Path>) -> String {
+        prefix.map_or_else(String::new, |prefix| {
+            format!("{}/", percent_decode_path(prefix.as_ref()))
+        })
+    }
+
+    /// Converts a listed path and its OpenDAL metadata into object metadata, or
+    /// `None` when the entry is not an object.
+    ///
+    /// HDFS directories are real entries in an OpenDAL listing, while
+    /// `ObjectStore::list` is documented to yield objects only. Reporting a
+    /// directory as a zero-byte object would hand callers a path whose delete
+    /// removes a directory instead of a file.
+    fn object_meta(path: &str, metadata: &Metadata) -> Option<ObjectMeta> {
+        if metadata.is_dir() {
+            return None;
+        }
+
+        Some(ObjectMeta {
+            location: Path::from(path),
+            last_modified: metadata
+                .last_modified()
+                .map_or_else(Default::default, |timestamp| {
+                    SystemTime::from(timestamp).into()
+                }),
+            size: metadata.content_length(),
+            e_tag: metadata.etag().map(str::to_string),
+            version: metadata.version().map(str::to_string),
+        })
+    }
+
+    /// Keeps only the child directories of a delimited listing.
+    ///
+    /// OpenDAL reports the listed directory itself as an entry, which
+    /// `ListResult::common_prefixes` must not contain.
+    fn child_prefixes(common_prefixes: &mut Vec<Path>, prefix: Option<&Path>) {
+        common_prefixes
+            .retain(|path| !path.as_ref().is_empty() && prefix.is_none_or(|prefix| path != prefix));
     }
 }
 
@@ -111,7 +156,29 @@ impl OSObjectStore for HdfsObjectStore {
     }
 
     fn list(&self, prefix: Option<&Path>) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
-        self.inner.list(prefix)
+        let path = Self::listing_path(prefix);
+        let error_path = Path::from(path.as_str());
+        let operator = self.operator.clone();
+
+        let listing = async move {
+            let lister = operator
+                .lister_with(&path)
+                .recursive(true)
+                .await
+                .map_err(|error| Self::format_opendal_error(error, &error_path))?;
+
+            Ok::<_, object_store::Error>(lister.filter_map(move |result| {
+                let error_path = error_path.clone();
+                async move {
+                    match result {
+                        Ok(entry) => Self::object_meta(entry.path(), entry.metadata()).map(Ok),
+                        Err(error) => Some(Err(Self::format_opendal_error(error, &error_path))),
+                    }
+                }
+            }))
+        };
+
+        listing.into_send().into_stream().try_flatten().boxed()
     }
 
     fn list_with_offset(
@@ -119,11 +186,18 @@ impl OSObjectStore for HdfsObjectStore {
         prefix: Option<&Path>,
         offset: &Path,
     ) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
-        self.inner.list_with_offset(prefix, offset)
+        // The HDFS service cannot push `start_after` down to the name node, so
+        // the exclusive offset is applied to the filtered listing.
+        let offset = offset.clone();
+        self.list(prefix)
+            .try_filter(move |meta| future::ready(meta.location > offset))
+            .boxed()
     }
 
     async fn list_with_delimiter(&self, prefix: Option<&Path>) -> object_store::Result<ListResult> {
-        self.inner.list_with_delimiter(prefix).await
+        let mut result = self.inner.list_with_delimiter(prefix).await?;
+        Self::child_prefixes(&mut result.common_prefixes, prefix);
+        Ok(result)
     }
 
     async fn copy_opts(
@@ -174,6 +248,7 @@ mod tests {
     use super::*;
     use futures::{StreamExt, TryStreamExt, stream};
     use object_store::{Error, GetRange, ObjectStoreExt};
+    use opendal::{MetadataBuilder, raw::Timestamp};
 
     fn memory_store() -> HdfsObjectStore {
         HdfsObjectStore::new(Operator::new(opendal::services::Memory::default()).unwrap())
@@ -218,5 +293,46 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(Error::NotFound { path, .. }) if path == "missing"));
+    }
+
+    #[test]
+    fn object_meta_skips_directories_and_keeps_file_metadata() {
+        let directory = MetadataBuilder::dir().build();
+        assert!(HdfsObjectStore::object_meta("dataset/_versions/", &directory).is_none());
+
+        let mut builder = MetadataBuilder::file(11);
+        builder.last_modified(Timestamp::from_second(1_700_000_000).unwrap());
+        let file = builder.build();
+
+        let meta = HdfsObjectStore::object_meta("dataset/_versions/1.manifest", &file)
+            .expect("files must be listed");
+        assert_eq!(meta.location, Path::from("dataset/_versions/1.manifest"));
+        assert_eq!(meta.size, 11);
+        assert_eq!(meta.last_modified.timestamp(), 1_700_000_000);
+    }
+
+    #[test]
+    fn child_prefixes_drops_the_listed_directory_itself() {
+        let mut common_prefixes = vec![
+            Path::from("dataset"),
+            Path::from("dataset/_versions"),
+            Path::from("dataset/data"),
+        ];
+
+        HdfsObjectStore::child_prefixes(&mut common_prefixes, Some(&Path::from("dataset")));
+
+        assert_eq!(
+            common_prefixes,
+            vec![Path::from("dataset/_versions"), Path::from("dataset/data")]
+        );
+    }
+
+    #[test]
+    fn child_prefixes_drops_the_root_when_listing_without_a_prefix() {
+        let mut common_prefixes = vec![Path::from("/"), Path::from("dataset")];
+
+        HdfsObjectStore::child_prefixes(&mut common_prefixes, None);
+
+        assert_eq!(common_prefixes, vec![Path::from("dataset")]);
     }
 }
