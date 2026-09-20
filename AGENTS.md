@@ -31,8 +31,13 @@ test time, `libjvm` must be reachable, e.g. `LD_LIBRARY_PATH=$JAVA_HOME/lib/serv
 
 ## Dependency Compatibility
 
-- Lance crates are pinned exactly (`=12.0.0`): `lance-core`, `lance-io`,
-  `lance-table`, and the `lance` dev-dependency.
+- Lance crates use caret requirements (`"12"`), never exact pins: `lance-core`,
+  `lance-io`, `lance-table`, and the `lance` dev-dependency. An exact `=12.0.0`
+  turns the next `lance` patch release into an unresolvable dependency graph for
+  users, while a caret still resolves every crate to one `lance-io` copy.
+- One published `lance` major is one backend release line. Do not widen a caret
+  across majors: `lance-io` 12 and 13 are semver-incompatible, so cargo keeps two
+  copies and the provider no longer type-checks against the registry.
 - The storage stack must stay type-compatible as a unit:
   `lance-io 12` <-> `object_store =0.14.1` <-> `object_store_opendal 0.60.2`
   <-> `opendal 0.59.2`. Never bump one of these without checking the others;
