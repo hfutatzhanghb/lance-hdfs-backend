@@ -134,6 +134,12 @@ HDFS_NAME_NODE=hdfs://localhost:9000 \
   cargo test --all-features --test hdfs_integration -- --ignored
 ```
 
+The nameservice (HA) test activates only when `HDFS_HA_NAMESERVICE` is set.
+Point the Hadoop client configuration (`HADOOP_CONF_DIR` and `CLASSPATH`) at
+the target nameservice, export the variable, and run the same command. For a
+Kerberos-secured cluster, obtain a ticket with `kinit` first and pass
+`hdfs_user` and `hdfs_kerberos_ticket_cache_path` through storage options.
+
 ## Licenses
 
 Licensed under the Apache License, Version 2.0. See the `LICENSE` file for the
