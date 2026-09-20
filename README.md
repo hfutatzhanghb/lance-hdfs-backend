@@ -23,9 +23,9 @@ Add the backend and the Lance crates it integrates with to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lance-hdfs-backend = "0.1.2"
-lance = { version = "12.0.0", default-features = false }
-lance-io = { version = "12.0.0", default-features = false }
+lance-hdfs-backend = "0.2.0"
+lance = { version = "13.0.0-beta.7", default-features = false }
+lance-io = { version = "13.0.0-beta.7", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -33,8 +33,11 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 provides the dataset API, and `tokio` runs the async calls. The default features
 of `lance-hdfs-backend` include the HDFS provider and the rename commit handler.
 
-This release targets Lance 12.0.0. Keep `lance` and `lance-io` on that version
-so the backend and your application share the same types.
+This release targets Lance 13.0.0-beta.7. Keep `lance` and `lance-io` on that
+version so the backend and your application share the same types. Lance 13 is
+not published on crates.io yet, so this release is consumed as a Git dependency
+and resolves the Lance crates through `[patch.crates-io]`. Use `0.1.2` for the
+published Lance 12.0.0 crates.
 
 ## Quickstart
 

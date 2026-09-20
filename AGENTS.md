@@ -31,10 +31,12 @@ test time, `libjvm` must be reachable, e.g. `LD_LIBRARY_PATH=$JAVA_HOME/lib/serv
 
 ## Dependency Compatibility
 
-- Lance crates are pinned exactly (`=12.0.0`): `lance-core`, `lance-io`,
-  `lance-table`, and the `lance` dev-dependency.
+- Lance crates are pinned exactly (`=13.0.0-beta.7`): `lance-core`, `lance-io`,
+  `lance-table`, and the `lance` dev-dependency. Until that version is on
+  crates.io, `[patch.crates-io]` resolves the pins from the Lance `main`
+  branch; remove the patch section before publishing.
 - The storage stack must stay type-compatible as a unit:
-  `lance-io 12` <-> `object_store =0.14.1` <-> `object_store_opendal 0.60.2`
+  `lance-io 13` <-> `object_store =0.14.1` <-> `object_store_opendal 0.60.2`
   <-> `opendal 0.59.2`. Never bump one of these without checking the others;
   blind auto-upgrades break the build at the type level.
 - Published releases must depend only on crates.io versions, never Git
