@@ -1,6 +1,6 @@
 [package]
 name = "lance-hdfs-backend"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 rust-version = "1.91.0"
 authors = ["hfutatzhanghb"]
@@ -16,19 +16,19 @@ categories = ["database-implementations", "filesystem"]
 async-trait = "0.1"
 bytes = "1.11.1"
 futures = "0.3"
-object_store = { version = "=0.14.1", default-features = false }
+object_store = { version = "0.14.1", default-features = false }
 url = "2.5.7"
 lance-core = { version = "12", default-features = false }
 lance-io = { version = "12", default-features = false }
-opendal = { version = "0.59.2", optional = true }
-object_store_opendal = { version = "0.60.2", optional = true, features = ["send_wrapper"] }
+opendal = { version = "0.59.1", optional = true }
+object_store_opendal = { version = "0.60.1", optional = true, features = ["send_wrapper"] }
 lance-table = { version = "12", optional = true, default-features = false }
 
 [dev-dependencies]
 arrow-array = "58.0.0"
 arrow-schema = "58.0.0"
 lance = { version = "12", default-features = false }
-opendal = { version = "0.59.2", default-features = false, features = ["services-memory"] }
+opendal = { version = "0.59.1", default-features = false, features = ["services-memory"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [features]

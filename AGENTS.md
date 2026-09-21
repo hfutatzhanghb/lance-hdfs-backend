@@ -35,12 +35,12 @@ test time, `libjvm` must be reachable, e.g. `LD_LIBRARY_PATH=$JAVA_HOME/lib/serv
   `lance-io`, `lance-table`, and the `lance` dev-dependency. An exact `=12.0.0`
   turns the next `lance` patch release into an unresolvable dependency graph for
   users, while a caret still resolves every crate to one `lance-io` copy.
-- One published `lance` major is one backend release line. Do not widen a caret
-  across majors: `lance-io` 12 and 13 are semver-incompatible, so cargo keeps two
-  copies and the provider no longer type-checks against the registry.
-- The storage stack must stay type-compatible as a unit:
-  `lance-io 12` <-> `object_store =0.14.1` <-> `object_store_opendal 0.60.2`
-  <-> `opendal 0.59.2`. Never bump one of these without checking the others;
+- One published `lance` major is one backend release line. Do not mix majors:
+  `lance-io` 12 and 13 are semver-incompatible, so cargo keeps two copies and
+  the provider no longer type-checks against the registry.
+- The storage stack must stay type-compatible with Lance `v12.0.0`:
+  `lance-io 12` <-> `object_store 0.14.1` <-> `object_store_opendal 0.60.1`
+  <-> `opendal 0.59.1`. Never bump one of these without checking the others;
   blind auto-upgrades break the build at the type level.
 - Published releases must depend only on crates.io versions, never Git
   dependencies; crates.io rejects them.

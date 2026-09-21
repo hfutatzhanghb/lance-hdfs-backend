@@ -23,7 +23,7 @@ Add the backend and the Lance crates it integrates with to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lance-hdfs-backend = "0.2.1"
+lance-hdfs-backend = "0.2.2"
 lance = { version = "12", default-features = false }
 lance-io = { version = "12", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
